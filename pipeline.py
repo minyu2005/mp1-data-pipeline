@@ -1,11 +1,11 @@
-"""
-Data Processing Pipeline - CLI Template
 
-DS 3500 - MP1
+"""
+Data Processing Pipeline - MP1 Part 2
+
+DS 3500
 
 Usage:
-    python pipeline.py --input data.csv --output clean.csv
-    python pipeline.py --input data.csv --output results.json --format json --verbose
+    python pipeline.py --input fixtures/sample.csv --output clean.csv
 """
 
 import argparse
@@ -13,12 +13,15 @@ import logging
 import sys
 from pathlib import Path
 
+from data_loaders import load_data
+
 
 logger = logging.getLogger(__name__)
 
 
 def setup_logging(verbose=False):
     """Configure logging for the pipeline."""
+
     level = logging.DEBUG if verbose else logging.INFO
 
     logging.basicConfig(
@@ -30,6 +33,7 @@ def setup_logging(verbose=False):
 
 def parse_arguments():
     """Parse command-line arguments."""
+
     parser = argparse.ArgumentParser(
         description="Command-line data processing pipeline"
     )
@@ -67,6 +71,7 @@ def parse_arguments():
 
 def validate_input(filepath):
     """Check whether the input path exists and is a file."""
+
     if Path(filepath).is_file():
         logger.info("Input file validated: %s", filepath)
         return True
@@ -77,6 +82,7 @@ def validate_input(filepath):
 
 def main():
     """Main pipeline function."""
+
     args = parse_arguments()
 
     setup_logging(args.verbose)
@@ -89,6 +95,13 @@ def main():
     )
 
     if not validate_input(args.input):
+        sys.exit(1)
+
+    try:
+        data = load_data(args.input)
+
+    except ValueError as e:
+        logger.error("Failed to load data: %s", e)
         sys.exit(1)
 
 
