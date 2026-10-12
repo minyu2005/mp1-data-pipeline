@@ -1,40 +1,33 @@
-
 """
-Data Processing Pipeline - MP1 Part 3
+DS 3500 - MP1
+Complete command-line data processing pipeline.
 
-DS 3500
-
-Usage:
-    python pipeline.py --input fixtures/sample.csv --output cleaned_data.csv --config config.yaml --verbose
+Example:
+    python pipeline.py \
+        --input fixtures/sample_data.csv \
+        --output output/clean.csv \
+        --config config/config.yaml \
+        --verbose
 """
 
 import argparse
 import logging
 import sys
-from pathlib import Path
 
 import pandas as pd
 
-from data_loaders import load_data
-from data_processor import (
+from src import (
+    create_cleaning_report,
+    load_data,
     process_data,
-    create_cleaning_report
+    save_data,
+    setup_logging,
+    validate_dataframe,
+    validate_input,
 )
 
 
 logger = logging.getLogger(__name__)
-
-
-def setup_logging(verbose=False):
-    """Configure logging for the pipeline."""
-
-    level = logging.DEBUG if verbose else logging.INFO
-
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
-        datefmt="%H:%M:%S"
-    )
 
 
 def parse_arguments():
@@ -48,14 +41,14 @@ def parse_arguments():
         "--input",
         "-i",
         required=True,
-        help="Path to the input file"
+        help="Path to the input CSV file"
     )
 
     parser.add_argument(
         "--output",
         "-o",
         required=True,
-        help="Path to the output file"
+        help="Path to the output CSV file"
     )
 
     parser.add_argument(
@@ -74,24 +67,11 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def validate_input(filepath):
-    """Check whether the input path exists and is a file."""
-
-    if Path(filepath).is_file():
-        logger.info("Input file validated: %s", filepath)
-        return True
-
-    logger.error("Input file not found: %s", filepath)
-    return False
-
-
 def main():
-    """Main pipeline workflow."""
+    """Run the complete data-processing pipeline."""
 
-    # 1. Parse arguments
     args = parse_arguments()
 
-    # 2. Set up logging
     setup_logging(args.verbose)
 
     logger.debug(
@@ -101,63 +81,91 @@ def main():
         args.config
     )
 
-    # 3. Validate input and config files
+    # Validate paths
     if not validate_input(args.input):
         sys.exit(1)
 
     if not validate_input(args.config):
         sys.exit(1)
 
-    # 4. Load data and configuration
+    # Load data and config
     try:
         data = load_data(args.input)
         config = load_data(args.config)
 
-    except ValueError as e:
-        logger.error("Loading failed: %s", e)
+    except ValueError as error:
+        logger.error("Loading failed: %s", error)
         sys.exit(1)
 
-    # 5. Check that the input is tabular data
     if not isinstance(data, pd.DataFrame):
         logger.error("Input data must be a CSV DataFrame")
         sys.exit(1)
 
-    # 6. Keep a copy of the original data
-    original_data = data.copy()
+    # Validation settings
+    validation_config = config["validation"]
 
-    # 7. Process data
+    required_columns = validation_config["required_columns"]
+    numeric_columns = validation_config["numeric_columns"]
+
+    # Validate DataFrame
+    rows_before_validation = len(data)
+
     try:
-        cleaned_data = process_data(data, config)
+        validated_data = validate_dataframe(
+            data,
+            required_columns,
+            numeric_columns
+        )
 
-    except ValueError as e:
-        logger.error("Processing failed: %s", e)
+    except ValueError as error:
+        logger.error("Validation failed: %s", error)
         sys.exit(1)
 
-    # 8. Generate cleaning report
-    report = create_cleaning_report(
-        original_data,
-        cleaned_data
+    logger.info(
+        "Validation complete: %d -> %d rows",
+        rows_before_validation,
+        len(validated_data)
     )
 
-    print(report)
+    # Keep copy before cleaning
+    original_data = validated_data.copy()
 
-    # 9. Log the processing results
+    # Process data
+    try:
+        cleaned_data = process_data(
+            validated_data,
+            config
+        )
+
+    except ValueError as error:
+        logger.error("Processing failed: %s", error)
+        sys.exit(1)
+
     logger.info(
         "Processing complete: %d -> %d rows",
         len(original_data),
         len(cleaned_data)
     )
 
-    # 10. Save cleaned data
-    cleaned_data.to_csv(
-        args.output,
-        index=False
+    # Create report
+    report = create_cleaning_report(
+        original_data,
+        cleaned_data
+    )
+
+    # Save output
+    output_path = save_data(
+        cleaned_data,
+        args.output
     )
 
     logger.info(
         "Saved cleaned data to %s",
-        args.output
+        output_path
     )
+
+    print("\nCleaning report:")
+    print(report)
 
 
 if __name__ == "__main__":

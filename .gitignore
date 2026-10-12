@@ -24,3 +24,6 @@ Thumbs.db
 
 # Generated output
 cleaned_data.csv
+
+# Generated output
+output/

@@ -1,5 +1,5 @@
 """
-DS 3500 - MP1 Part 3
+DS 3500 - MP1
 Data processing module.
 """
 
@@ -39,7 +39,7 @@ def handle_missing(df, axis="rows"):
 
         return result
 
-    elif axis == "columns":
+    if axis == "columns":
         before = len(df.columns)
 
         result = df.dropna(axis=1).copy()
@@ -51,15 +51,14 @@ def handle_missing(df, axis="rows"):
 
         return result
 
-    else:
-        logger.error(
-            "Invalid missing value axis: %s",
-            axis
-        )
+    logger.error(
+        "Invalid missing value axis: %s",
+        axis
+    )
 
-        raise ValueError(
-            f"Invalid missing value axis: {axis}"
-        )
+    raise ValueError(
+        f"Invalid missing value axis: {axis}"
+    )
 
 
 def remove_outliers(df, columns, method, threshold):
@@ -111,8 +110,10 @@ def remove_outliers(df, columns, method, threshold):
             ].copy()
 
             logger.debug(
-                "%s: removed %d outliers using IQR",
+                "%s: method=%s, threshold=%s, removed=%d",
                 column,
+                method,
+                threshold,
                 before - len(result)
             )
 
@@ -123,7 +124,7 @@ def remove_outliers(df, columns, method, threshold):
 
             if pd.isna(std) or std == 0:
                 logger.debug(
-                    "%s: skipping Z-score (zero standard deviation)",
+                    "%s: skipping Z-score because standard deviation is zero",
                     column
                 )
                 continue
@@ -139,8 +140,10 @@ def remove_outliers(df, columns, method, threshold):
             ].copy()
 
             logger.debug(
-                "%s: removed %d outliers using Z-score",
+                "%s: method=%s, threshold=%s, removed=%d",
                 column,
+                method,
+                threshold,
                 before - len(result)
             )
 
@@ -148,7 +151,7 @@ def remove_outliers(df, columns, method, threshold):
 
 
 def process_data(df, config):
-    """Apply processing based on configuration settings."""
+    """Apply data-cleaning steps based on configuration settings."""
 
     processing = config["processing"]
 
@@ -188,7 +191,8 @@ def create_cleaning_report(df_before, df_after):
         "columns_before": len(df_before.columns),
         "columns_after": len(df_after.columns),
         "columns_removed": (
-            len(df_before.columns) - len(df_after.columns)
+            len(df_before.columns)
+            - len(df_after.columns)
         )
     }
 
